@@ -46,7 +46,6 @@ func main() {
 		ipVersion = 6
 	}
 
-	fmt.Println("create session")
 	session, err := connection.CreateSession(
 		twamp.TwampSessionConfig{
 			ReceiverPort: *port,
@@ -60,8 +59,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Println("create test")
 
 	test, err := session.CreateTest()
 	if err != nil {
