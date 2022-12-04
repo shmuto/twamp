@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 
 	"github.com/tcaine/twamp"
@@ -29,7 +30,8 @@ func main() {
 	}
 
 	remoteIP := args[0]
-	remoteServer := fmt.Sprintf("%s:%d", remoteIP, 862)
+	remoteAddr := net.TCPAddr{IP: net.ParseIP(remoteIP), Port: 862}
+	remoteServer := remoteAddr.String()
 
 	c := twamp.NewClient()
 	connection, err := c.Connect(remoteServer)
@@ -37,6 +39,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	var ipVersion = 6
+	if remoteAddr.IP.To4() != nil {
+		ipVersion = 4
+	} else {
+		ipVersion = 6
+	}
+
+	fmt.Println("create session")
 	session, err := connection.CreateSession(
 		twamp.TwampSessionConfig{
 			ReceiverPort: *port,
@@ -44,11 +54,14 @@ func main() {
 			Timeout:      *wait,
 			Padding:      *size,
 			TOS:          *tos,
+			IPVersion:    ipVersion,
 		},
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println("create test")
 
 	test, err := session.CreateTest()
 	if err != nil {

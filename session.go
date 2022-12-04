@@ -2,7 +2,6 @@ package twamp
 
 import (
 	"encoding/binary"
-	"fmt"
 	"log"
 	"net"
 )
@@ -77,8 +76,7 @@ func (s *TwampSession) CreateTest() (*TwampTest, error) {
 	if err != nil {
 		return nil, err
 	}
-	localAddress := fmt.Sprintf("%s:%d", test.GetLocalTestHost(), s.GetConfig().SenderPort)
-	localAddr, err := net.ResolveUDPAddr("udp", localAddress)
+	localAddr, err := test.LocalAddr()
 	if err != nil {
 		return nil, err
 	}

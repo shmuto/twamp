@@ -101,8 +101,9 @@ type TwampSessionConfig struct {
 	// that is being set up by the current Request-Session command will
 	// be considered lost if it is not received during Timeout seconds
 	// after it is sent.
-	Timeout int
-	TOS     int
+	Timeout   int
+	TOS       int
+	IPVersion int
 }
 
 func (c *TwampConnection) getTwampServerStartMessage() (*TwampServerStart, error) {
@@ -125,7 +126,7 @@ func (c *TwampConnection) getTwampServerStartMessage() (*TwampServerStart, error
 }
 
 /* Byte offsets for Request-TW-Session TWAMP PDU */
-const (	// TODO these constants should be removed as part of a refactor when control changel messages are refactored to use "struct based" messaging which is clearer
+const ( // TODO these constants should be removed as part of a refactor when control changel messages are refactored to use "struct based" messaging which is clearer
 	offsetRequestTwampSessionCommand         = 0
 	offsetRequestTwampSessionIpVersion       = 1
 	offsetRequestTwampSessionSenderPort      = 12
@@ -141,7 +142,7 @@ type RequestTwSession []byte
 func (b RequestTwSession) Encode(c TwampSessionConfig) {
 	start_time := NewTwampTimestamp(time.Now())
 	b[offsetRequestTwampSessionCommand] = byte(5)
-	b[offsetRequestTwampSessionIpVersion] = byte(4) // As per RFC, this value can be 4 (IPv4) or 6 (IPv6).
+	b[offsetRequestTwampSessionIpVersion] = byte(c.IPVersion) // As per RFC, this value can be 4 (IPv4) or 6 (IPv6).
 	binary.BigEndian.PutUint16(b[offsetRequestTwampSessionSenderPort:], uint16(c.SenderPort))
 	binary.BigEndian.PutUint16(b[offsetRequestTwampSessionReceiverPort:], uint16(c.ReceiverPort))
 	binary.BigEndian.PutUint32(b[offsetRequestTwampSessionPaddingLength:], uint32(c.Padding))

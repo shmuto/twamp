@@ -10,12 +10,12 @@ import (
 )
 
 /*
-	Default TCP port for remote TWAMP server.
+Default TCP port for remote TWAMP server.
 */
 const TwampControlPort int = 862
 
 /*
-	Security modes for TWAMP session.
+Security modes for TWAMP session.
 */
 const (
 	ModeUnspecified     = 0
@@ -87,7 +87,7 @@ func readFromSocket(reader io.Reader, size int) (bytes.Buffer, error) {
 }
 
 /*
-	TWAMP Accept Field Status Code
+TWAMP Accept Field Status Code
 */
 const (
 	OK                          = 0
@@ -99,8 +99,8 @@ const (
 )
 
 /*
-	Convenience function for checking the accept code contained in various TWAMP server
-	response messages.
+Convenience function for checking the accept code contained in various TWAMP server
+response messages.
 */
 func checkAcceptStatus(accept int, context string) error {
 	switch accept {

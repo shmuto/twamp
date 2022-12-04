@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/net/ipv4"
 	"log"
 	"math/rand"
 	"net"
-	"strings"
+	"net/netip"
 	"time"
 	"unsafe"
+
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 )
 
 /*
@@ -27,26 +29,48 @@ type TwampTest struct {
 /*
 Function header called when a test package arrived back.
 Can be used to show some progress
- */
-type TwampTestCallbackFunction func(result *TwampResults);
+*/
+type TwampTestCallbackFunction func(result *TwampResults)
 
 /*
  */
 func (t *TwampTest) SetConnection(conn *net.UDPConn) {
-	c := ipv4.NewConn(conn)
 
-	// RFC recommends IP TTL of 255
-	err := c.SetTTL(255)
+	host, _, err := net.SplitHostPort(conn.LocalAddr().String())
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
-	err = c.SetTOS(t.GetSession().GetConfig().TOS)
-	if err != nil {
-		log.Fatal(err)
+	if net.ParseIP(host).To4() != nil {
+		c := ipv4.NewConn(conn)
+		// RFC recommends IP TTL of 255
+		err := c.SetTTL(255)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = c.SetTOS(t.GetSession().GetConfig().TOS)
+		if err != nil {
+			log.Fatal(err)
+		}
+		t.conn = conn
+
+	} else {
+		c := ipv6.NewConn(conn)
+
+		// RFC recommends IP TTL of 255
+		err := c.SetHopLimit(255)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = c.SetTrafficClass(t.GetSession().GetConfig().TOS)
+		if err != nil {
+			log.Fatal(err)
+		}
+		t.conn = conn
 	}
 
-	t.conn = conn
 }
 
 /*
@@ -67,8 +91,26 @@ func (t *TwampTest) GetSession() *TwampSession {
 Get the remote TWAMP IP/UDP address.
 */
 func (t *TwampTest) RemoteAddr() (*net.UDPAddr, error) {
-	address := fmt.Sprintf("%s:%d", t.GetRemoteTestHost(), t.GetRemoteTestPort())
-	return net.ResolveUDPAddr("udp", address)
+	addr, err := netip.ParseAddr(t.GetRemoteTestHost())
+	if err != nil {
+		return nil, err
+	}
+	host := netip.AddrPortFrom(addr, uint16(t.session.config.ReceiverPort)).String()
+
+	return net.ResolveUDPAddr("udp", host)
+}
+
+/*
+Get the local TWAMP IP/UDP address.
+*/
+func (t *TwampTest) LocalAddr() (*net.UDPAddr, error) {
+	addr, err := netip.ParseAddr(t.GetLocalTestHost())
+	if err != nil {
+		return nil, err
+	}
+	host := netip.AddrPortFrom(addr, uint16(t.session.config.SenderPort)).String()
+
+	return net.ResolveUDPAddr("udp", host)
 }
 
 /*
@@ -82,29 +124,36 @@ func (t *TwampTest) GetRemoteTestPort() uint16 {
 Get the local IP address for the TWAMP control session.
 */
 func (t *TwampTest) GetLocalTestHost() string {
-	localAddress := t.session.GetConnection().LocalAddr()
-	return strings.Split(localAddress.String(), ":")[0]
+	host, _, err := net.SplitHostPort(t.session.GetConnection().LocalAddr().String())
+	if err != nil {
+		log.Println(err)
+	}
+	return host
 }
 
 /*
 Get the remote IP address for the TWAMP control session.
 */
 func (t *TwampTest) GetRemoteTestHost() string {
-	remoteAddress := t.session.GetConnection().RemoteAddr()
-	return strings.Split(remoteAddress.String(), ":")[0]
+	host, _, err := net.SplitHostPort(t.session.GetConnection().RemoteAddr().String())
+	if err != nil {
+		log.Println(err)
+	}
+
+	return host
 }
 
 type MeasurementPacket struct {
-	Sequence uint32
-	Timestamp TwampTimestamp
-	ErrorEstimate uint16
-	MBZ uint16
-	ReceiveTimeStamp TwampTimestamp
-	SenderSequence uint32
-	SenderTimeStamp TwampTimestamp
+	Sequence            uint32
+	Timestamp           TwampTimestamp
+	ErrorEstimate       uint16
+	MBZ                 uint16
+	ReceiveTimeStamp    TwampTimestamp
+	SenderSequence      uint32
+	SenderTimeStamp     TwampTimestamp
 	SenderErrorEstimate uint16
-	Mbz uint16
-	SenderTtl byte
+	Mbz                 uint16
+	SenderTtl           byte
 	//Padding []byte
 }
 
@@ -201,7 +250,7 @@ func (t *TwampTest) sendTestMessage(use_all_zeroes bool) int {
 
 	headerBytes := binaryBuffer.Bytes()
 	headerSize := binaryBuffer.Len()
-	totalSize := headerSize+paddingSize
+	totalSize := headerSize + paddingSize
 	var pdu []byte = make([]byte, totalSize)
 	copy(pdu[0:], headerBytes)
 	copy(pdu[headerSize:], padding)
