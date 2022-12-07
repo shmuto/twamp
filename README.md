@@ -18,6 +18,7 @@ TWAMP client for go
 			Timeout:      1,
 			Padding:      100,
 			TOS:          twamp.EF,
+			IPVersion:    4
 		},
 	)
 	if err != nil {
